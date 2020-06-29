@@ -1,0 +1,152 @@
+const appUrl = require('../fixtures/config').APP_URL
+import '@testing-library/cypress/add-commands'
+
+describe('Invite Friends', () => {
+  let tripUrl = ''
+  before(() => {
+    cy.visit(appUrl)
+    cy.findByText('Plan my trip').click()
+    cy.url().should('include', '/create')
+    cy.findByPlaceholderText('Enter your first name').type('QA')
+    cy.findByPlaceholderText('Enter your last name').type('Tester')
+    cy.findByText('Next').click()
+    cy.findByPlaceholderText('Enter your departure airport (e.g. SFO)').type(
+      'SFO'
+    )
+    cy.findByText('Next').click()
+    cy.findByPlaceholderText('Enter your trip name').type('QA Test Trip')
+    cy.findByText('Next').click()
+
+    // Sign up process
+    cy.findByText('Sign up').click()
+    cy.findByDisplayValue('QA Tester').should('exist')
+    cy.findByPlaceholderText('Enter your email').type('autoqa@email.com')
+    cy.findByPlaceholderText('Enter your password').type('password')
+    cy.findByPlaceholderText('Confirm your password').type('password')
+    cy.get('.PrivateSwitchBase-input-4').click()
+    cy.findByText('Sign up').click()
+    cy.url().should('include', '/trip')
+    cy.findByText('QA').click()
+    cy.findByText('Sign out').click()
+    cy.url().should('include', '/')
+  })
+  describe('Invitation process for hosts', () => {
+    beforeEach(() => {
+      cy.visit(appUrl)
+      cy.findByText('Login').should('exist')
+      cy.findByText('Login').click()
+      cy.findByPlaceholderText('Enter your email').type('autoqa@email.com')
+      cy.findByPlaceholderText('Enter your password').type('password')
+      cy.findByText('Log in').click()
+      cy.url().should('include', '/trips')
+    })
+    it('shows the invitiation modal when inviting a friend', () => {
+      cy.visit(appUrl)
+      cy.findByText('My Trips').click()
+      cy.findByText('Continue Planning').click()
+      cy.url().should('include', '/trip')
+      cy.findByText('Invite').click()
+      cy.findByText('Get shareable link').should('exist')
+      cy.url().then((url) => {
+        tripUrl = url
+      })
+    })
+    it('shows an alert modal when moving on to date range', () => {
+      cy.visit(appUrl)
+      cy.findByText('My Trips').click()
+      cy.findByText('Continue Planning').click()
+      cy.url().should('include', '/trip')
+      cy.findByText('Open date range poll').click()
+      cy.findByText('Are you sure?').should('exist')
+    })
+  })
+  describe('Invitation link', () => {
+    it('shows an error if no first name', () => {
+      cy.visit(`${tripUrl}/invite`)
+      cy.findByText('You have been invited to join').should('exist')
+      cy.findByPlaceholderText('First name').type('QA')
+      cy.findByPlaceholderText('Departure airport (e.g. SFO)').type('SFO')
+      cy.findByText('Join trip').click()
+      cy.findByText('You must enter a last name').should('exist')
+
+      cy.visit(`${tripUrl}/invite`)
+      cy.findByText('You have been invited to join').should('exist')
+      cy.findByPlaceholderText('Last name').type('Tester')
+      cy.findByPlaceholderText('Departure airport (e.g. SFO)').type('SFO')
+      cy.findByText('Join trip').click()
+      cy.findByText('You must enter a first name').should('exist')
+
+      cy.visit(`${tripUrl}/invite`)
+      cy.findByText('You have been invited to join').should('exist')
+      cy.findByPlaceholderText('First name').type('QA')
+      cy.findByPlaceholderText('Last name').type('Tester')
+      cy.findByText('Join trip').click()
+      cy.findByText('You must enter a departure airport').should('exist')
+    })
+    it('shows a login form once all fields are entered', () => {
+      cy.visit(`${tripUrl}/invite`)
+      cy.findByText('You have been invited to join').should('exist')
+      cy.findByPlaceholderText('First name').type('QA')
+      cy.findByPlaceholderText('Last name').type('Tester')
+      cy.findByPlaceholderText('Departure airport (e.g. SFO)').type('SFO')
+      cy.findByText('Join trip').click()
+      cy.findByText('Login').should('exist')
+    })
+    it('navigates to trip page once user creates an account', () => {
+      cy.visit(`${tripUrl}/invite`)
+      cy.findByText('You have been invited to join').should('exist')
+      cy.findByPlaceholderText('First name').type('QA')
+      cy.findByPlaceholderText('Last name').type('Friend')
+      cy.findByPlaceholderText('Departure airport (e.g. SFO)').type('SFO')
+      cy.findByText('Join trip').click()
+
+      // Sign up a new friend
+      cy.findByText('Sign up').click()
+      cy.findByPlaceholderText('Enter your full name').type('QA Friend')
+      cy.findByPlaceholderText('Enter your email').type('autoqa@friend.com')
+      cy.findByPlaceholderText('Enter your password').type('password')
+      cy.findByPlaceholderText('Confirm your password').type('password')
+      cy.get('.PrivateSwitchBase-input-4').click()
+      cy.findByText('Sign up').click()
+      cy.url().should('include', '/trip')
+      cy.findByText('QA Friend').should('exist')
+      cy.findByText('QA').click()
+      cy.findByText('Sign out').click()
+      cy.url().should('include', '/')
+    })
+  })
+  after(() => {
+    cy.visit(appUrl)
+    cy.findByText('Login').should('exist')
+    cy.findByText('Login').click()
+    cy.findByPlaceholderText('Enter your email').type('autoqa@email.com')
+    cy.findByPlaceholderText('Enter your password').type('password')
+    cy.findByText('Log in').click()
+    cy.url().should('include', '/trips')
+
+    cy.findByText('My Trips').click()
+    cy.findByText('Continue Planning').click()
+    cy.findByText('Delete trip').click()
+    cy.findByText('Yes, continue').click()
+    cy.url().should('not.include', '/trip')
+
+    cy.visit(appUrl)
+    cy.findByText('QA').click()
+    cy.findByText('Delete account').click()
+    cy.findByText('Yes, continue').click()
+    cy.findByText('QA').should('not.exist')
+
+    // Delete the friend account
+    cy.visit(appUrl)
+    cy.findByText('Login').should('exist')
+    cy.findByText('Login').click()
+    cy.findByPlaceholderText('Enter your email').type('autoqa@friend.com')
+    cy.findByPlaceholderText('Enter your password').type('password')
+    cy.findByText('Log in').click()
+    cy.url().should('include', '/trips')
+    cy.findByText('QA').click()
+    cy.findByText('Delete account').click()
+    cy.findByText('Yes, continue').click()
+    cy.findByText('QA').should('not.exist')
+  })
+})
